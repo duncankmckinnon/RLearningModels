@@ -4,6 +4,7 @@
 
 LogisticRegression_Model <- function(XTrain, YTrain, alpha = 0.01, num_iters = 10, raw = F,  XTest = NULL, YTest = NULL)
 {
+#internal model function to perform gradient descent optimization on weights and offset
   optimize <- function(w, b, XTrain, YTrain, alpha, num_iters)
   {
     costs <- c()
@@ -18,6 +19,8 @@ LogisticRegression_Model <- function(XTrain, YTrain, alpha = 0.01, num_iters = 1
     return(list("w" = w, "b" = b, "dw" = vals$dw, "db" = vals$db,  "costs" = costs))
   }
   
+#internal model function to perform forward propogation to get estimates based on current weights and offset
+# and back propogation for next optimization step
   propogate <- function(w, b, XTrain, YTrain, type = "sigmoid")
   {
     m <- dim(XTrain)[2]
@@ -26,8 +29,6 @@ LogisticRegression_Model <- function(XTrain, YTrain, alpha = 0.01, num_iters = 1
     
     cost <- -(1/m) * sum((t(YTrain) %*% log(guess)) + (1 - t(YTrain)) %*% log(1 - guess))
     
-    
-    
     dw <- (1/m) * t(XTrain) %*% (guess - YTrain)
     
     db <- (1/m) * sum(guess - YTrain)
@@ -35,18 +36,23 @@ LogisticRegression_Model <- function(XTrain, YTrain, alpha = 0.01, num_iters = 1
     return(list("dw" = dw, "db" = db, "cost" = cost))
   }
   
+#initialization of variables for training phase
   XTrain <- as.matrix(XTrain)
   YTrain <- as.matrix(YTrain)
   
   w = matrix(0, nrow = dim(XTrain)[2])
   b = 0
   
+#train system on training data
   vals <- optimize(w, b, XTrain, YTrain, alpha, num_iters)
+  
+#run system against training results
   pred_Train <- as.matrix(LRMod_predict(vals$w, vals$b, XTrain, raw), nrow = 1)
   accuracy_Train <- 1 - (sum(abs(YTrain - pred_Train)) / length(YTrain))
   
   LRMod <- list("w" = vals$w, "b" = vals$b, "costs" = vals$costs, "is_diff" = raw, "Train_Per" = accuracy_Train, "Train_Vals" = pred_Train)
   
+#run system against testing data
   if(!is.null(XTest) && !is.null(YTest))
   {
     XTest <- as.matrix(XTest)
@@ -60,6 +66,7 @@ LogisticRegression_Model <- function(XTrain, YTrain, alpha = 0.01, num_iters = 1
   return(LRMod)
 }
 
+#Run existing model against a new dataset
 Predict <- function(LRMod, XTest, YTest, raw = F)
 {
   pred_Test <- as.matrix(LRMod_predict(LRMod$w, LRMod$b, XTest, raw), nrow = 1)
@@ -68,6 +75,7 @@ Predict <- function(LRMod, XTest, YTest, raw = F)
   return(list("values" = pred_Test, "Accuracy" = accuracy_Test))
 }
 
+#Get prediction results for a set of parameters and data
 LRMod_predict <- function(w, b, XTest, raw = F)
 {
   if(!raw)
@@ -77,6 +85,7 @@ LRMod_predict <- function(w, b, XTest, raw = F)
   return(activation(XTest %*% w + b, "sigmoid"))
 }
 
+#Non-linear activation functions for determining classifications based on input
 activation <- function(z, type = c("sigmoid", "tanH", "ReLU"), deriv = F, n = 1)
 {
   if(!deriv)
