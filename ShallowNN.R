@@ -38,7 +38,7 @@ NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(4), alpha = 0.01, num_it
     
     dw2 <- (1/m) * dz2 %*% t(a1)
     
-    db2 <- colSums(t(dz2))
+    db2 <- (1/m) * colSums(t(dz2))
     
     dz1 <- (t(w[[2]]) %*% dz2) * activation(z1, type, T)
     
@@ -143,5 +143,5 @@ NN_Sample <- function(type = "virginica")
   yTest <- as.matrix(ifelse(iris[test, 5] %in% type, 1, 0))
   NNMod <- NeuralNetwork_Model(XTrain = xTrain, YTrain = yTrain, XTest = xTest, YTest = yTest, raw_diff = T, type = "sigmoid")
   
-  return(list("XTrain" = xTrain, "YTrain" = yTrain, "XTest" = xTest, "YTest" = yTest, "NNModel" = NNMod))
+  return(list("XTrain" = xTrain, "YTrain" = yTrain, "XTest" = xTest, "YTest" = yTest, "NN_Sample" = NNMod))
 }

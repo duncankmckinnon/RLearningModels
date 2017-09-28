@@ -11,11 +11,11 @@
  
   len1 <- dim(m1)
   len2 <- dim(m2)
-  if(len1 == len2)
+  if(all(len1 == len2))
   {
     return(m1 + m2)
   }
-  else if(all(len1 %in% len2))
+  else if(all(len1 %in% len2) && all(len2 %in% len1))
   {
     return(m1 + t(m2))
   }
