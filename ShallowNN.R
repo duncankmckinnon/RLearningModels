@@ -2,8 +2,9 @@
 #Duncan McKinnonx
 
 
-NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(4), alpha = 0.01, num_iters = 10, type = "tanH", raw_diff = T, XTest = NULL, YTest = NULL)
+NeuralNetwork_Model <- function(XTrain, YTrain, n_h = 4, alpha = 0.01, num_iters = 10, type = "tanH", raw_diff = T, XTest = NULL, YTest = NULL)
 {
+#internal model function to perform gradient descent optimization on weights and offset
   optimize <- function(w, b, XTrain, YTrain, alpha, num_iters, type)
   {
     costs <- c()
@@ -19,7 +20,9 @@ NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(4), alpha = 0.01, num_it
     }
     return(list("w" = w, "b" = b, "dw" = vals$dw,  "db" = vals$db,  "costs" = costs))
   }
-  
+
+#internal model function to perform forward propogation to get estimates based on current weights and offset
+# and back propogation for next optimization step  
   propogate <- function(w, b, XTrain, YTrain, type)
   {
     m <- dim(XTrain)[2]
@@ -49,29 +52,35 @@ NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(4), alpha = 0.01, num_it
     return(list("dw" = c(dw1, dw2), "db" = c(db1, db2), "cost" = cost))
   }
   
-  ## Takes a matrix of examples where each row is a different example and 
-  ## each column is a features on which the examples are defined 
+#initialization of variables for training phase
   XTrain <- t(as.matrix(XTrain))
   YTrain <- as.matrix(YTrain)
-  
+
+ #number of inner layer dimensions  
   n <- c(dim(XTrain)[1], n_h, dim(YTrain)[2])
+  
   
   w <- list()
   b <- list()
   
+  #initialize 2 levels of weights and offsets
   for(i in 2:length(n))
   {
     w[[i-1]] <- matrix((sample(100, n[i-1] * n[i], T) - 50) * 0.01 , n[i], n[i-1])
     b[[i-1]] <- matrix((sample(100, n[i], T) - 50) * 0.01, n[i], 1)
   }
   
+  
+#run gradient descent optimization  
   vals <- optimize(w, b, XTrain, YTrain, alpha, num_iters, type)
   
+#get predictions and accuracy for training examples
   pred_Train <- as.matrix(NNModel_predict(vals$w, vals$b, XTrain, type, raw_diff), nrow = 1)
   accuracy_Train <- sum(t(YTrain) - pred_Train) / length(YTrain)
     
   NNModel <- list("w" = vals$w, "b" = vals$b, "costs" = vals$costs, "activation" = type, "is_diff" = raw_diff, "Train_Per" = accuracy_Train, "Train_Vals" = pred_Train)
   
+#get predictions and accuracy for testing examples
   if(!is.null(XTest) && !is.null(YTest))
   {
     XTest <- t(as.matrix(XTest))
@@ -84,6 +93,7 @@ NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(4), alpha = 0.01, num_it
   return(NNModel)
 }
 
+#Run existing model against a new dataset
 Predict <- function(NNModel, XTest, YTest)
 {
   pred <- NNModel_predict(NNModel$w, NNModel$b, XTest, YTest, NNModel$activation, NNModel$is_diff)
@@ -91,7 +101,7 @@ Predict <- function(NNModel, XTest, YTest)
   predModel <- list("Values" = pred, "Accuracy" = accuracy_Test)
 }
 
-
+#Get prediction results for a set of parameters and data
 NNModel_predict <- function(w, b, XTest, type, raw_diff = F)
 {
   z1 <- (w[[1]] %*% XTest)  %+% b[[1]]
@@ -110,6 +120,7 @@ NNModel_predict <- function(w, b, XTest, type, raw_diff = F)
   return(a2)
 }
 
+#Non-linear activation functions for determining classifications based on input
 activation <- function(z, type = c("sigmoid", "tanH", "ReLU"), deriv = F, n = 1)
 {
   if(!deriv)
@@ -131,6 +142,8 @@ activation <- function(z, type = c("sigmoid", "tanH", "ReLU"), deriv = F, n = 1)
   }
 }
 
+
+#Generate a sample model trained to recognize the type of flower in the iris sample set.
 #type = c("setosa", "versicolor", "virginica")
 NN_Sample <- function(type = "virginica")
 {
