@@ -146,7 +146,7 @@ activation <- function(z, type = c("sigmoid", "tanH", "ReLU"), deriv = F, n = 1)
     return(ifelse(z >= 0, 1, 0))
   }else
   {
-    if(type[n] == "sigmoid"){return(activation(z, type) * (1 - activation(z, type)))}
+    if(type[n] == "sigmoid"){return(activation(z, type[n]) * (1 - activation(z, type[n])))}
     
     if(type[n] == "tanH"){return(1 - tanh(z)^2)}
     
