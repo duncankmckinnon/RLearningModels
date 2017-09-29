@@ -5,12 +5,12 @@
 NeuralNetwork_Model <- function(XTrain, YTrain, n_h = 4, alpha = 0.01, num_iters = 10, type = "tanH", raw_diff = T, XTest = NULL, YTest = NULL)
 {
 #internal model function to perform gradient descent optimization on weights and offset
-  optimize <- function(w, b, XTrain, YTrain, alpha, num_iters, type)
+  NN_optimize <- function(w, b, XTrain, YTrain, alpha, num_iters, type)
   {
     costs <- c()
     for(i in 1:num_iters)
     {
-      vals <- propogate(w, b, XTrain, YTrain, type)
+      vals <- NN_propagate(w, b, XTrain, YTrain, type)
       w[[1]] = w[[1]] - (alpha * vals$dw[1])
       b[[1]] = b[[1]] - (alpha * vals$db[1])
       w[[2]] = w[[2]] - (alpha * vals$dw[2])
@@ -21,9 +21,9 @@ NeuralNetwork_Model <- function(XTrain, YTrain, n_h = 4, alpha = 0.01, num_iters
     return(list("w" = w, "b" = b, "dw" = vals$dw,  "db" = vals$db,  "costs" = costs))
   }
 
-#internal model function to perform forward propogation to get estimates based on current weights and offset
+#internal model function to perform forward propagation to get estimates based on current weights and offset
 # and back propogation for next optimization step  
-  propogate <- function(w, b, XTrain, YTrain, type)
+  NN_propagate <- function(w, b, XTrain, YTrain, type)
   {
     m <- dim(XTrain)[2]
     
@@ -72,10 +72,10 @@ NeuralNetwork_Model <- function(XTrain, YTrain, n_h = 4, alpha = 0.01, num_iters
   
   
 #run gradient descent optimization  
-  vals <- optimize(w, b, XTrain, YTrain, alpha, num_iters, type)
+  vals <- NN_optimize(w, b, XTrain, YTrain, alpha, num_iters, type)
   
 #get predictions and accuracy for training examples
-  pred_Train <- as.matrix(NNModel_predict(vals$w, vals$b, XTrain, type, raw_diff), nrow = 1)
+  pred_Train <- as.matrix(NN_predict(vals$w, vals$b, XTrain, type, raw_diff), nrow = 1)
   accuracy_Train <- sum(t(YTrain) - pred_Train) / length(YTrain)
     
   NNModel <- list("w" = vals$w, "b" = vals$b, "costs" = vals$costs, "activation" = type, "is_diff" = raw_diff, "Train_Per" = accuracy_Train, "Train_Vals" = pred_Train)
@@ -85,7 +85,7 @@ NeuralNetwork_Model <- function(XTrain, YTrain, n_h = 4, alpha = 0.01, num_iters
   {
     XTest <- t(as.matrix(XTest))
     YTest <- as.matrix(YTest)
-    pred_Test <- as.matrix(NNModel_predict(vals$w, vals$b, XTest, type, raw_diff), nrow = 1)
+    pred_Test <- as.matrix(NN_predict(vals$w, vals$b, XTest, type, raw_diff), nrow = 1)
     accuracy_Test <- sum(t(YTest) - pred_Test) / length(YTest)
     NNModel[["Test_Per"]] = accuracy_Test
     NNModel[["Test_Vals"]] = pred_Test 
@@ -96,13 +96,13 @@ NeuralNetwork_Model <- function(XTrain, YTrain, n_h = 4, alpha = 0.01, num_iters
 #Run existing model against a new dataset
 Predict <- function(NNModel, XTest, YTest)
 {
-  pred <- NNModel_predict(NNModel$w, NNModel$b, XTest, YTest, NNModel$activation, NNModel$is_diff)
+  pred <- NN_predict(NNModel$w, NNModel$b, XTest, YTest, NNModel$activation, NNModel$is_diff)
   accuracy_Test <- sum(t(YTest) - pred_Test) / length(YTest)
   predModel <- list("Values" = pred, "Accuracy" = accuracy_Test)
 }
 
 #Get prediction results for a set of parameters and data
-NNModel_predict <- function(w, b, XTest, type, raw_diff = F)
+NN_predict <- function(w, b, XTest, type, raw_diff = F)
 {
   z1 <- (w[[1]] %*% XTest)  %+% b[[1]]
   
@@ -129,7 +129,7 @@ activation <- function(z, type = c("sigmoid", "tanH", "ReLU"), deriv = F, n = 1)
   
     if(type[n] == "tanH"){return(tanh(z))}
   
-    if(type[n] == "ReLU"){return(max(0.01*z, z))}
+    if(type[n] == "ReLU"){return(ifelse(z > 0, z, 0.01*z))}
     return(ifelse(z >= 0, 1, 0))
   }else
   {
@@ -137,7 +137,7 @@ activation <- function(z, type = c("sigmoid", "tanH", "ReLU"), deriv = F, n = 1)
     
     if(type[n] == "tanH"){return(1 - tanh(z)^2)}
     
-    if(type[n] == "ReLU"){return(max(0.01*z, z)/ifelse(z == 0, 1e-6, z))}
+    if(type[n] == "ReLU"){return(ifelse(z > 0, z, 0.01*z)/ifelse(z == 0, 1e-6, z))}
     return(0)
   }
 }
