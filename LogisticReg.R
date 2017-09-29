@@ -21,11 +21,11 @@ LogisticRegression_Model <- function(XTrain, YTrain, alpha = 0.01, num_iters = 1
   
 #internal model function to perform forward propogation to get estimates based on current weights and offset
 # and back propogation for next optimization step
-  propogate <- function(w, b, XTrain, YTrain, type = "sigmoid")
+  propogate <- function(w, b, XTrain, YTrain)
   {
     m <- dim(XTrain)[2]
     
-    guess <- activation(XTrain %*% w + b, type)
+    guess <- LR_activation(XTrain %*% w + b)
     
     cost <- -(1/m) * sum((t(YTrain) %*% log(guess)) + (1 - t(YTrain)) %*% log(1 - guess))
     
@@ -80,37 +80,20 @@ LRMod_predict <- function(w, b, XTest, raw = F)
 {
   if(!raw)
   {
-    return(ifelse(activation(XTest %*% w + b, "sigmoid") > 0.5, 1, 0))
+    return(ifelse(LR_activation(XTest %*% w + b) > 0.5, 1, 0))
   }
-  return(activation(XTest %*% w + b, "sigmoid"))
+  return(LR_activation(XTest %*% w + b))
 }
 
 #Non-linear activation functions for determining classifications based on input
-activation <- function(z, type = c("sigmoid", "tanH", "ReLU"), deriv = F, n = 1)
+LR_activation <- function(z)
 {
-  if(!deriv)
-  {
-    if(type[n] == "sigmoid"){return(1 / (1 + exp(-z)))}
-    
-    if(type[n] == "tanH"){return(tanh(z))}
-    
-    if(type[n] == "ReLU"){return(max(0.01*z, z))}
-    return(ifelse(z >= 0, 1, 0))
-  }else
-  {
-    if(type[n] == "sigmoid"){return(activation(z, type) * (1 - activation(z, type)))}
-    
-    if(type[n] == "tanH"){return(1 - tanh(z)^2)}
-    
-    if(type[n] == "ReLU"){return(max(0.01*z, z)/ifelse(z == 0, 1e-6, z))}
-    return(0)
-  }
+  return(1 / (1 + exp(-z)))
 }
-
 
 #Generate a sample model trained to differentiate between flowers in the iris sample set.
 #type = c("setosa", "versicolor", "virginica")
-LR_Sample <- function(type = "virginica")
+LR_Sample <- function(alpha = 0.01, num_iters = 10, raw = F, type = "virginica")
 {
   train <- sample(150, 100)
   test <- 1:150
@@ -119,7 +102,7 @@ LR_Sample <- function(type = "virginica")
   yTrain <- as.matrix(ifelse(iris[train, 5] %in% type, 1, 0))
   xTest <- as.matrix(iris[test, 1:4])
   yTest <- as.matrix(ifelse(iris[test, 5] %in% type, 1, 0))
-  LRMod <- LogisticRegression_Model(XTrain = xTrain, YTrain = yTrain, XTest = xTest, YTest = yTest)
+  LRMod <- LogisticRegression_Model(XTrain = xTrain, YTrain = yTrain, XTest = xTest, YTest = yTest, alpha = alpha, num_iters = num_iters, raw = raw)
   
   return(list("XTrain" = xTrain, "YTrain" = yTrain, "XTest" = xTest, "YTest" = yTest, "LRModel" = LRMod))
 }

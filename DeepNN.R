@@ -2,7 +2,7 @@
 #Duncan McKinnonx
 
 
-Deep_NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(4), alpha = 0.07, num_iters = 10, type = "tanH", XTest = NULL, YTest = NULL)
+Deep_NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(4), alpha = 0.01, num_iters = 10, type = "tanH", XTest = NULL, YTest = NULL)
 {
   #internal model function to perform gradient descent optimization on weights and offset
   Deep_NN_optimize <- function(w, b, XTrain, YTrain, nlayers, alpha, num_iters, type)
@@ -129,7 +129,6 @@ Deep_NN_predict <- function(w, b, XTest, layers, type)
   
     an[[i]] <- activation(zn[[i]], type)
   }
-  
   return(an[[layers]])
 }
 
@@ -146,7 +145,7 @@ activation <- function(z, type = c("sigmoid", "tanH", "ReLU"), deriv = F, n = 1)
     return(ifelse(z >= 0, 1, 0))
   }else
   {
-    if(type[n] == "sigmoid"){return(activation(z, type) * (1 - activation(z, type)))}
+    if(type[n] == "sigmoid"){return(activation(z, type[n]) * (1 - activation(z, type[n])))}
     
     if(type[n] == "tanH"){return(1 - tanh(z)^2)}
     
@@ -158,10 +157,20 @@ activation <- function(z, type = c("sigmoid", "tanH", "ReLU"), deriv = F, n = 1)
 
 
 #Generate a sample model trained to recognize the type of flower in the iris sample set.
-#type = c("setosa", "versicolor", "virginica")
-Deep_NN_Sample <- function(n_h = c(5,4,3), alpha = 0.01, num_iters = 10,  activation = "tanH")
+# "setosa" = 1, "versicolor" = 2, "virginica" = 3
+Deep_NN_Sample <- function(train_size = 100, n_h = c(5,4,3), alpha = 0.01, num_iters = 10,  activation = "tanH")
 {
-  train <- sample(150, 100)
+  
+  if(train_size > 140)
+  {
+    train_size <- 140
+  }
+  else if(train_size < 40)
+  {
+    train_size <- 40
+  }
+  
+  train <- sample(150, train_size)
   test <- 1:150
   test <- test[!(test %in% train)]
   xTrain <- as.matrix(iris[train, 1:4])
