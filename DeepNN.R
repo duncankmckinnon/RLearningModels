@@ -2,7 +2,7 @@
 #Duncan McKinnonx
 
 
-Deep_NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(4), alpha = 0.01, num_iters = 10, type = "tanH", XTest = NULL, YTest = NULL)
+Deep_NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(5,4,3), alpha = 0.01, num_iters = 10, type = "tanH", XTest = NULL, YTest = NULL)
 {
   #internal model function to perform gradient descent optimization on weights and offset
   Deep_NN_optimize <- function(w, b, XTrain, YTrain, nlayers, alpha, num_iters, type)

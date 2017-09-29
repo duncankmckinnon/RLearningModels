@@ -93,9 +93,18 @@ LR_activation <- function(z)
 
 #Generate a sample model trained to differentiate between flowers in the iris sample set.
 #type = c("setosa", "versicolor", "virginica")
-LR_Sample <- function(alpha = 0.01, num_iters = 10, raw = F, type = "virginica")
+LR_Sample <- function(train_size = 100, alpha = 0.01, num_iters = 10, raw = F, type = "virginica")
 {
-  train <- sample(150, 100)
+  if(train_size > 140)
+  {
+    train_size <- 140
+  }
+  else if(train_size < 40)
+  {
+    train_size <- 40
+  }
+  
+  train <- sample(150, train_size)
   test <- 1:150
   test <- test[!(test %in% train)]
   xTrain <- as.matrix(iris[train, 1:4])
