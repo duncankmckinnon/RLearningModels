@@ -1,8 +1,11 @@
 #Neural Network Model (1 hidden layer of n_h nodes)
 #Duncan McKinnonx
 
+source('matrixBroadcasting.R')
+source('parseData.R')
+source('activation.R')
 
-NeuralNetwork_Model <- function(XTrain, YTrain, n_h = 4, alpha = 0.01, num_iters = 10, type = "tanH", XTest = NULL, YTest = NULL)
+NeuralNetwork_Model <- function(XTrain, YTrain, n_h = 4, alpha = 0.01, num_iters = 10, type = "tanH", XTest = NULL, YTest = NULL, regularize = F)
 {
 #internal model function to perform gradient descent optimization on weights and offset
   NN_optimize <- function(w, b, XTrain, YTrain, alpha, num_iters, type)
@@ -35,7 +38,7 @@ NeuralNetwork_Model <- function(XTrain, YTrain, n_h = 4, alpha = 0.01, num_iters
     
     a2 <- activation(z2, type)
     
-    cost <- -(1/m) * sum((YTrain - t(a2))^2)
+    cost <- (1/m) * sum((YTrain - t(a2))^2)
     
     dz2 <- a2 - t(YTrain)
     
@@ -43,7 +46,7 @@ NeuralNetwork_Model <- function(XTrain, YTrain, n_h = 4, alpha = 0.01, num_iters
     
     db2 <- (1/m) * colSums(t(dz2))
     
-    dz1 <- (t(w[[2]]) %*% dz2) * activation(z1, type, T)
+    dz1 <- (t(w[[2]]) %*% dz2) * activation(z1, type, deriv = T)
     
     dw1 <- (1/m) * dz1 %*% t(XTrain)
     
@@ -67,7 +70,7 @@ NeuralNetwork_Model <- function(XTrain, YTrain, n_h = 4, alpha = 0.01, num_iters
   for(i in 2:length(n))
   {
     w[[i-1]] <- matrix((sample(100, n[i-1] * n[i], T) - 50) * 0.01 , n[i], n[i-1])
-    b[[i-1]] <- matrix((sample(100, n[i], T) - 50) * 0.01, n[i], 1)
+    b[[i-1]] <- matrix(0, n[i], 1)
   }
   
   
@@ -76,9 +79,10 @@ NeuralNetwork_Model <- function(XTrain, YTrain, n_h = 4, alpha = 0.01, num_iters
   
 #get predictions and accuracy for training examples
   pred_Train <- as.matrix(NN_predict(vals$w, vals$b, XTrain, type), nrow = 1)
-  accuracy_Train <- 1 - sum(abs(t(YTrain) - pred_Train)) / length(YTrain)
+  accuracy_Train <- 1 - sum((t(YTrain) - pred_Train) ^ 2) / length(YTrain)
+  cor_Train <- cor.test(t(YTrain), pred_Train)$estimate
     
-  NNModel <- list("w" = vals$w, "b" = vals$b, "costs" = vals$costs, "activation" = type, "Train_Per" = accuracy_Train, "Train_Vals" = pred_Train)
+  NNModel <- list("w" = vals$w, "b" = vals$b, "costs" = vals$costs, "activation" = type, "Train_Per" = accuracy_Train, "Train_Cor" = cor_Train, "Train_Vals" = pred_Train)
   
 #get predictions and accuracy for testing examples
   if(!is.null(XTest) && !is.null(YTest))
@@ -86,19 +90,23 @@ NeuralNetwork_Model <- function(XTrain, YTrain, n_h = 4, alpha = 0.01, num_iters
     XTest <- t(as.matrix(XTest))
     YTest <- as.matrix(YTest)
     pred_Test <- as.matrix(NN_predict(vals$w, vals$b, XTest, type), nrow = 1)
-    accuracy_Test <- 1 - sum(abs(t(YTest) - pred_Test)) / length(YTest)
+    accuracy_Test <-  1 - sum((t(YTest) - pred_Test) ^ 2) / length(YTest)
+    cor_Test <- cor.test(t(YTest), pred_Test)$estimate
     NNModel[["Test_Per"]] = accuracy_Test
+    NNModel[["Test_Cor"]] = cor_Test
     NNModel[["Test_Vals"]] = pred_Test 
   }
   return(NNModel)
 }
 
 #Run existing model against a new dataset
-Predict <- function(NNModel, XTest, YTest)
+Predict_SNN <- function(NNModel, XTest, YTest)
 {
   pred <- NN_predict(NNModel$w, NNModel$b, XTest, YTest, NNModel$activation)
-  accuracy_Test <- 1 - sum(abs(t(YTest) - pred_Test)) / length(YTest)
-  predModel <- list("Values" = pred, "Accuracy" = accuracy_Test)
+  accuracy_Test <-  1 - sum((t(YTest) - pred_Test) ^ 2) / length(YTest)
+  cor_Test <- cor.test(t(YTest), pred_Test)$estimate
+  predModel <- list("Values" = pred, "Accuracy" = accuracy_Test, "Correlation" = cor_Test)
+  return(predModel)
 }
 
 #Get prediction results for a set of parameters and data
@@ -115,49 +123,41 @@ NN_predict <- function(w, b, XTest, type)
   return(a2)
 }
 
-#Non-linear activation functions for determining classifications based on input
-activation <- function(z, type = c("sigmoid", "tanH", "ReLU"), deriv = F, n = 1)
-{
-  if(!deriv)
-  {
-    if(type[n] == "sigmoid"){return(1 / (1 + exp(-z)))}
-    
-    if(type[n] == "tanH"){return(tanh(z))}
-    
-    if(type[n] == "ReLU"){return(ifelse(z > 0, z, 0.01*z))}
-    return(ifelse(z >= 0, 1, 0))
-  }else
-  {
-    if(type[n] == "sigmoid"){return(activation(z, type[n]) * (1 - activation(z, type[n])))}
-    
-    if(type[n] == "tanH"){return(1 - tanh(z)^2)}
-    
-    if(type[n] == "ReLU"){return(ifelse(z > 0, z, 0.01*z)/ifelse(z == 0, 1e-6, z))}
-    return(0)
-  }
-}
-
 #Generate a sample model trained to recognize the type of flower in the iris sample set.
 # "setosa" = 1, "versicolor" = 2, "virginica" = 3
-NN_Sample <- function(train_size = 100, n_h = 5, alpha = 0.01, num_iters = 10, act= "ReLU")
+NN_Sample <- function(data_set = iris, xcol = c(1:4), ycol = 5, train_size = 100, test_size = 50, n_h = 5, alpha = 0.01, num_iters = 10, act= "ReLU", type = "", raw = F)
 {
-  if(train_size > 140)
-  {
-    train_size <- 140
-  }
-  else if(train_size < 40)
-  {
-    train_size <- 40
-  }
-     
-  train <- sample(150, train_size)
-  test <- 1:150
-  test <- test[!(test %in% train)]
-  xTrain <- as.matrix(iris[train, 1:4])
-  yTrain <- as.matrix(as.numeric(iris[train, 5]))
-  xTest <- as.matrix(iris[test, 1:4])
-  yTest <- as.matrix(as.numeric(iris[test, 5]))
-  NNMod <- NeuralNetwork_Model(XTrain = xTrain, YTrain = yTrain, XTest = xTest, YTest = yTest, n_h = n_h, alpha = alpha, num_iters = num_iters, type = act)
   
-  return(list("XTrain" = xTrain, "YTrain" = yTrain, "XTest" = xTest, "YTest" = yTest, "NN_Sample" = NNMod))
+  if(train_size > dim(data_set)[1])
+  {
+    train_size <- dim(data_set)[1] - 10
+  }
+  else if(train_size < 20)
+  {
+    train_size <- 20
+  }
+  
+  dataset <- parseModelData(data_set, x_cols = xcol, y_cols = ycol, train_size = train_size, test_size = test_size)
+  dataset$YTrain <- as.numeric(dataset$YTrain)
+  dataset$YTest <- as.numeric(dataset$YTest)
+  NNMod <- NeuralNetwork_Model(XTrain = dataset$XTrain, YTrain = dataset$YTrain, XTest = dataset$XTest, YTest = dataset$YTest, n_h = n_h, alpha = alpha, num_iters = num_iters, type = act)
+  
+  if(!raw)
+  {
+    vals <- NNMod[['Train_Vals']]
+    vals <- ifelse(vals <= 1, 1, ifelse(vals < 2 & abs(2-vals) < abs(1-vals), 1, ifelse(vals <= 2, 2, ifelse(abs(2-vals) < abs(3-vals), 2, 3))))
+    NNMod[['Train_Vals']] <- vals
+    vals <- NNMod[['Test_Vals']]
+    vals <- ifelse(vals <= 1, 1, ifelse(vals < 2 & abs(2-vals) < abs(1-vals), 1, ifelse(vals <= 2, 2, ifelse(abs(2-vals) < abs(3-vals), 2, 3))))
+    NNMod[['Test_Vals']] <- vals
+  }
+  
+  if(type == "")
+  {
+    return(list("XTrain" = dataset$XTrain, "YTrain" = dataset$YTrain, "XTest" = dataset$XTest, "YTest" = dataset$YTest, "Model" = NNMod))
+  }
+  else
+  {
+    return(NNMod[[type]])
+  }
 }

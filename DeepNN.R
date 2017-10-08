@@ -1,8 +1,11 @@
 #Deep Neural Network Model (L-hidden layers of N_H[l] nodes)
 #Duncan McKinnonx
 
+source('matrixBroadcasting.R')
+source('parseData.R')
+source('activation.R')
 
-Deep_NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(5,4,3), alpha = 0.01, num_iters = 10, type = "tanH", XTest = NULL, YTest = NULL)
+Deep_NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(5,4,3), alpha = 0.01, num_iters = 10, type = "tanH", XTest = NULL, YTest = NULL, regularize = F)
 {
   #internal model function to perform gradient descent optimization on weights and offset
   Deep_NN_optimize <- function(w, b, XTrain, YTrain, nlayers, alpha, num_iters, type)
@@ -28,10 +31,11 @@ Deep_NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(5,4,3), alpha = 0.0
     m <- dim(XTrain)[2]
     zn <- list()
     an <- list()
+    da <- list()
     dz <- list()
     dw <- list()
     db <- list()
-
+    
     zn[[1]] <- (w[[1]] %*% XTrain) %+% b[[1]]
     
     an[[1]] <- activation(zn[[1]], type)
@@ -44,7 +48,7 @@ Deep_NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(5,4,3), alpha = 0.0
       an[[i]] <- activation(zn[[i]], type)
     }
       
-    cost <- -(1/m) * sum((YTrain - t(an[[nlayers]]))^2)
+    cost <- (1/m) * sum((YTrain - t(an[[nlayers]]))^2)
     dz[[nlayers]] <- an[[nlayers]] - t(YTrain)
     
     for(j in nlayers:2)
@@ -53,7 +57,7 @@ Deep_NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(5,4,3), alpha = 0.0
     
       db[[j]] <- (1/m) * colSums(t(dz[[j]]))
       
-      dz[[j-1]] <- (t(w[[j]]) %*% dz[[j]]) * activation(zn[[j-1]], type, T)
+      dz[[j-1]] <- (t(w[[j]]) %*% dz[[j]]) * activation(zn[[j-1]], type, deriv = T)
     }
     
     dw[[1]] <- (1/m) * dz[[1]] %*% t(XTrain)
@@ -79,7 +83,7 @@ Deep_NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(5,4,3), alpha = 0.0
   for(i in 2:length(nvals))
   {
     w[[i-1]] <- matrix((sample(100, nvals[i-1] * nvals[i], T) - 50) * 0.01 , nvals[i], nvals[i-1])
-    b[[i-1]] <- matrix((sample(100, nvals[i], T) - 50) * 0.01, nvals[i], 1)
+    b[[i-1]] <- matrix(0, nvals[i], 1)
   }
   
   
@@ -88,9 +92,10 @@ Deep_NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(5,4,3), alpha = 0.0
   
   #get predictions and accuracy for training examples
   pred_Train <- as.matrix(Deep_NN_predict(vals$w, vals$b, XTrain, n, type), nrow = 1)
-  accuracy_Train <- 1 - sum(abs(t(abs(YTrain)) - abs(pred_Train))) / length(YTrain)
+  accuracy_Train <- 1 - sum((t(YTrain) - pred_Train) ^ 2) / length(YTrain)
+  cor_Train <- cor.test(t(YTrain), pred_Train)$estimate
   
-  NNModel <- list("w" = vals$w, "b" = vals$b, "costs" = vals$costs, "activation" = type, "Train_Per" = accuracy_Train, "Train_Vals" = pred_Train)
+  NNModel <- list("w" = vals$w, "b" = vals$b, "costs" = vals$costs, "activation" = type, "Train_Per" = accuracy_Train, "Train_Cor" = cor_Train, "Train_Vals" = pred_Train)
   
   #get predictions and accuracy for testing examples
   if(!is.null(XTest) && !is.null(YTest))
@@ -98,19 +103,23 @@ Deep_NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(5,4,3), alpha = 0.0
     XTest <- t(as.matrix(XTest))
     YTest <- as.matrix(YTest)
     pred_Test <- as.matrix(Deep_NN_predict(vals$w, vals$b, XTest, n, type), nrow = 1)
-    accuracy_Test <- 1 - sum(abs(t(abs(YTest)) - abs(pred_Test))) / length(YTest)
+    accuracy_Test <- 1 - sum((t(YTest) - pred_Test) ^ 2) / length(YTest)
+    cor_Test <- cor.test(t(YTest), pred_Test)$estimate
     NNModel[["Test_Per"]] = accuracy_Test
+    NNModel[["Test_Cor"]] = cor_Test
     NNModel[["Test_Vals"]] = pred_Test 
   }
   return(NNModel)
 }
 
 #Run existing model against a new dataset
-Predict <- function(NNModel, XTest, YTest)
+Predict_DNN <- function(Deep_NNModel, XTest, YTest)
 {
-  pred <- Deep_NN_predict(NNModel$w, NNModel$b, XTest, YTest, NNModel$activation)
-  accuracy_Test <- 1 - sum(abs(t(abs(YTest)) - abs(pred_Test))) / length(YTest)
-  predModel <- list("Values" = pred, "Accuracy" = accuracy_Test)
+  pred <- Deep_NN_predict(Deep_NNModel$w, Deep_NNModel$b, XTest, YTest, Deep_NNModel$activation)
+  accuracy_Test <-  1 - sum((t(YTest) - pred_Test) ^ 2) / length(YTest)
+  cor_Test <- cor.test(t(YTest), pred_Test)$estimate
+  predModel <- list("Values" = pred, "Accuracy" = accuracy_Test, "Correlation" = cor_Test)
+  return(predModel)
 }
 
 #Get prediction results for a set of parameters and data
@@ -118,7 +127,7 @@ Deep_NN_predict <- function(w, b, XTest, layers, type)
 {
   zn <- list()
   an <- list()
-  
+
   zn[[1]] <- (w[[1]] %*% XTest)  %+% b[[1]]
   
   an[[1]] <- activation(zn[[1]] , type)
@@ -132,52 +141,41 @@ Deep_NN_predict <- function(w, b, XTest, layers, type)
   return(an[[layers]])
 }
 
-#Non-linear activation functions for determining classifications based on input
-activation <- function(z, type = c("sigmoid", "tanH", "ReLU"), deriv = F, n = 1)
-{
-  if(!deriv)
-  {
-    if(type[n] == "sigmoid"){return(1 / (1 + exp(-z)))}
-    
-    if(type[n] == "tanH"){return(tanh(z))}
-    
-    if(type[n] == "ReLU"){return(ifelse(z > 0, z, 0.01*z))}
-    return(ifelse(z >= 0, 1, 0))
-  }else
-  {
-    if(type[n] == "sigmoid"){return(activation(z, type[n]) * (1 - activation(z, type[n])))}
-    
-    if(type[n] == "tanH"){return(1 - tanh(z)^2)}
-    
-    if(type[n] == "ReLU"){return(ifelse(z > 0, z, 0.01*z)/ifelse(z == 0, 1e-6, z))}
-    return(0)
-  }
-}
-
-
-
 #Generate a sample model trained to recognize the type of flower in the iris sample set.
 # "setosa" = 1, "versicolor" = 2, "virginica" = 3
-Deep_NN_Sample <- function(train_size = 100, n_h = c(5,4,3), alpha = 0.01, num_iters = 10,  activation = "tanH")
+Deep_NN_Sample <- function(data_set = iris, xcol = c(1:4), ycol = 5, train_size = 100, test_size = 50, n_h = c(5,4,3), alpha = 0.01, num_iters = 10,  act = "ReLU", type = "", raw = F)
 {
   
-  if(train_size > 140)
+  if(train_size > dim(data_set)[1])
   {
-    train_size <- 140
+    train_size <- dim(data_set)[1] - 10
   }
-  else if(train_size < 40)
+  else if(train_size < 20)
   {
-    train_size <- 40
+    train_size <- 20
   }
   
-  train <- sample(150, train_size)
-  test <- 1:150
-  test <- test[!(test %in% train)]
-  xTrain <- as.matrix(iris[train, 1:4])
-  yTrain <- as.matrix(as.numeric(iris[train, 5]))
-  xTest <- as.matrix(iris[test, 1:4])
-  yTest <- as.matrix(as.numeric(iris[test, 5]))
-  NNMod <- Deep_NeuralNetwork_Model(XTrain = xTrain, YTrain = yTrain, XTest = xTest, YTest = yTest, alpha = alpha, num_iters = num_iters, n_h = n_h, type = activation)
+  dataset <- parseModelData(data_set, x_cols = xcol, y_cols = ycol, train_size = train_size, test_size = test_size)
+  dataset$YTrain <- as.numeric(dataset$YTrain)
+  dataset$YTest <- as.numeric(dataset$YTest)
+  DNNMod <- Deep_NeuralNetwork_Model(XTrain = dataset$XTrain, YTrain = dataset$YTrain, XTest = dataset$XTest, YTest = dataset$YTest, alpha = alpha, num_iters = num_iters, n_h = n_h, type = act)
   
-  return(list("XTrain" = xTrain, "YTrain" = yTrain, "XTest" = xTest, "YTest" = yTest, "NN_Sample" = NNMod))
+  if(!raw)
+  {
+    vals <- DNNMod[['Train_Vals']]
+    vals <- ifelse(vals <= 1, 1, ifelse(vals < 2 & abs(2-vals) < abs(1-vals), 1, ifelse(vals <= 2, 2, ifelse(abs(2-vals) < abs(3-vals), 2, 3))))
+    DNNMod[['Train_Vals']] <- vals
+    vals <- DNNMod[['Test_Vals']]
+    vals <- ifelse(vals <= 1, 1, ifelse(vals < 2 & abs(2-vals) < abs(1-vals), 1, ifelse(vals <= 2, 2, ifelse(abs(2-vals) < abs(3-vals), 2, 3))))
+    DNNMod[['Test_Vals']] <- vals
+  }
+  
+  if(type == "")
+  {
+    return(list("XTrain" = dataset$XTrain, "YTrain" = dataset$YTrain, "XTest" = dataset$XTest, "YTest" = dataset$YTest, "Model" = DNNMod))
+  }
+  else
+  {
+    return(DNNMod[[type]])
+  }
 }
