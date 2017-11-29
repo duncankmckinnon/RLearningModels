@@ -81,7 +81,6 @@ library('assertthat')
 #NumPy style matrix subtraction with broadcasting
 '%-%' <- function(m1, m2)
 {
-  '%+%' <- dget('matrixBroadcasting/plus.R')
   return(m1 %+% -m2)
 }
 
@@ -166,6 +165,5 @@ library('assertthat')
 #NumPy style matrix division with broadcasting '%d%'
 '%d%' <- function(m1, m2)
 {
-  '%x%' <- dget('matrixBroadcasting/xtimes.R')
   return(m1 %x% (1/m2))
 }
