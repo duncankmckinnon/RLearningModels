@@ -1,6 +1,6 @@
 
 #Non-linear activation functions for determining classifications based on input
-activation <- function(z, type = c("sigmoid", "tanh", "relu", "l_relu"), deriv = F, n = 1)
+activation <- function(z, type = c("sigmoid", "tanh", "relu", "l_relu", "t"), deriv = F, n = 1)
 {
   if(!deriv)
   {
@@ -11,6 +11,8 @@ activation <- function(z, type = c("sigmoid", "tanh", "relu", "l_relu"), deriv =
     if(type[n] == "relu"){return(g_relu(z))}
     
     if(type[n] == "l_relu"){return(g_relu(z, leaky = T))}
+    
+    if(type[n] == "t"){return(g_t(z))}
     return(ifelse(z >= 0, 1, 0))
   }else
   {
@@ -50,4 +52,9 @@ g_relu <- function(z, deriv = F, thresh = 0, leaky = T)
     return(g_relu(z, thresh = thresh, leaky = leaky)/ifelse(z == 0, 1e-6, z))
   }
   return(ifelse(z >= thresh, z, ifelse(leaky, 0.01*z, 0)))
+}
+
+g_t <- function(z, deriv = F)
+{
+  return(exp(z)/rowSums(exp(z)))
 }
