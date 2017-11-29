@@ -11,6 +11,8 @@ Deep_NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(5,4,3), alpha = 0.0
   Deep_NN_optimize <- function(w, b, XTrain, YTrain, nlayers)
   {
     costs <- c()
+    
+    # list for updating momentum parameters
     if(momentum)
     {
       b1 = 0.5
@@ -33,10 +35,10 @@ Deep_NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(5,4,3), alpha = 0.0
       momentum_params <- list("momentum" = F)
     }
     
-    if(Batch_Norm)
-    {
-      
-    }
+    #todo: Batch_Norm
+    #if(Batch_Norm){}
+    
+    
     for(i in 1:num_iters)
     {
       vals <- Deep_NN_propagate(w, b, nlayers, XTrain, YTrain, type, momentum_params)
@@ -83,11 +85,19 @@ Deep_NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(5,4,3), alpha = 0.0
       j <- i-1
       zn[[i]] <- (w[[i]] %*% an[[j]]) %+% b[[i]]
     
-      an[[i]] <- activation(zn[[i]], type)
+      an[[i]] <- activation(zn[[i]], type, n = ifelse(i < nlayers, 1, length(type)))
     }
-      
-    cost <- (1/m) * sum((YTrain - t(an[[nlayers]]))^2)
-    dz[[nlayers]] <- an[[nlayers]] - t(YTrain)
+    
+    if(type[length(type)] == "t")
+    {
+      cost <- -(1/m) * sum((YTrain) %*% log( an[[nlayers]] ))
+    }
+    else
+    {
+      cost <- (1/m) * sum((YTrain - t(an[[nlayers]]))^2)
+    }
+    
+    dz[[nlayers]] <- an[[nlayers]] %-% t(YTrain)
     
     for(j in nlayers:2)
     {
@@ -131,6 +141,11 @@ Deep_NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(5,4,3), alpha = 0.0
   nvals <- c(dim(XTrain)[1], n_h, dim(YTrain)[2])
   n <- length(nvals) - 1
   
+  if(dim(YTrain)[2] > 1)
+  {
+    type <- c(type, "t")
+  }
+  
   w <- list()
   b <- list()
   
@@ -146,7 +161,7 @@ Deep_NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(5,4,3), alpha = 0.0
   vals <- Deep_NN_optimize(w, b, XTrain, YTrain, n)
   
   #get predictions and accuracy for training examples
-  pred_Train <- as.matrix(Deep_NN_predict(vals$w, vals$b, XTrain, n, type), nrow = 1)
+  pred_Train <- as.matrix(Deep_NN_predict(vals$w, vals$b, XTrain, n, type[length(type)]), nrow = 1)
   YTrain <- ifelse(is.na(YTrain), 0, YTrain)
   accuracy_Train <- 1 - sum((t(YTrain) - pred_Train) ^ 2) / length(YTrain)
   cor_Train <- cor.test(t(YTrain), pred_Train)$estimate
@@ -158,7 +173,7 @@ Deep_NeuralNetwork_Model <- function(XTrain, YTrain, n_h = c(5,4,3), alpha = 0.0
   {
     XTest <- t(as.matrix(XTest))
     YTest <- as.matrix(YTest)
-    pred_Test <- as.matrix(Deep_NN_predict(vals$w, vals$b, XTest, n, type), nrow = 1)
+    pred_Test <- as.matrix(Deep_NN_predict(vals$w, vals$b, XTest, n, type[length(type)]), nrow = 1)
     YTest <- ifelse(is.na(YTest), 0, YTest)
     accuracy_Test <- 1 - sum((t(YTest) - pred_Test) ^ 2) / length(YTest)
     cor_Test <- cor.test(t(YTest), pred_Test)$estimate
@@ -194,15 +209,18 @@ Deep_NN_predict <- function(w, b, XTest, layers, type)
   {
     zn[[i]] <- (w[[i]] %*% an[[i-1]]) %+% b[[i]]
   
-    an[[i]] <- activation(zn[[i]], type)
+    an[[i]] <- activation(zn[[i]], type, n = ifelse(i < layers, 1, length(type)))
   }
   return(an[[layers]])
 }
 
 #Generate a sample model trained to recognize the type of flower in the iris sample set.
 # "setosa" = 1, "versicolor" = 2, "virginica" = 3
-Deep_NN_Sample <- function(data_set = iris, xcol = c(1:4), ycol = 5, train_size = 100, test_size = 50, n_h = c(5,4,3), alpha = 0.01, num_iters = 10,  act = "relu", type = "", raw = F, momentum = T)
+Deep_NN_Sample <- function(data_set = iris, xcol = c(1:4), ycol = c(5:7), train_size = 100, test_size = 50, n_h = c(5,4,3), alpha = 0.01, num_iters = 10,  act = "relu", type = "", raw = F, momentum = T)
 {
+
+  data_set <- as.matrix(cbind(iris[1:150,1:4], matrix(as.numeric(c((iris[1:150, 5] == "setosa"),(iris[1:150, 5] == "versicolor"),(iris[1:150, 5] == "virginica"))), ncol = 3, dimnames = list(c(1:150), c("Setosa", "Versicolor", "Virginica")))))
+
   
   if(train_size > dim(data_set)[1])
   {
@@ -214,8 +232,8 @@ Deep_NN_Sample <- function(data_set = iris, xcol = c(1:4), ycol = 5, train_size 
   }
   
   dataset <- parseModelData(data_set, x_cols = xcol, y_cols = ycol, train_size = train_size, test_size = test_size)
-  dataset$YTrain <- as.numeric(dataset$YTrain)
-  dataset$YTest <- as.numeric(dataset$YTest)
+  dataset$YTrain <- dataset$YTrain
+  dataset$YTest <- dataset$YTest
   DNNMod <- Deep_NeuralNetwork_Model(XTrain = dataset$XTrain, YTrain = dataset$YTrain, XTest = dataset$XTest, YTest = dataset$YTest, alpha = alpha, num_iters = num_iters, n_h = n_h, type = act, momentum = momentum)
   
   if(!raw)
