@@ -3,6 +3,34 @@
 
 #Convolutional NN tools using R Arrays
 
+conv1d <- function(imray, filter, padding = 0, stride = 1, sameConv = FALSE)
+{
+  if(sameConv)
+  {
+      padding <- ceiling((stride * (dim(imray)[1] - 1) + dim(filter)[1] - dim(imray)[1])/2)
+  }
+  if(padding[1] > 0)
+  {
+    imray <- addPad(imray, padding)
+  }
+  nf <- dim(filter)[1]
+  nx <- dim(imray)[1]
+  len <- nx - nf + 1
+  z <- c()
+  for(i in seq(1, len, stride))
+  {
+    if((i+nf-stride < nx)) 
+    {
+      z <- c(z, sum(imray[i:(i+nf-1)] * filter))
+    }
+  }
+  suppressWarnings(
+    {
+      mz <- array(z, dim = length(z))
+    }
+  )
+  return(mz)
+}
 
 conv2d <- function(imray, filter, padding = 0, stride = 1, sameConv = FALSE)
 {
@@ -67,7 +95,6 @@ conv3d <- function(imray, filter, padding = 0, stride = 1, sameConv = FALSE)
       padding <- c(ceiling((stride * (nx[1] - 1) + nf[1] - nx[1])/2), ceiling((stride * (nx[2] - 1) + nf[2] - nx[2])/2))
     }
   }
-  
   if(padding[1] > 0)
   {
     imray <- addPad(imray, padding)
@@ -105,27 +132,33 @@ conv3d <- function(imray, filter, padding = 0, stride = 1, sameConv = FALSE)
 conv <- function(imray, filters, padding = 0, stride = 1)
 {
   z <- list()
-  df <- dim(filters[[1]])
+  df <- dim(filters)
   nf <- length(df)
   ni <- length(dim(imray))
-  n <- length(filters)
+  n <- df[nf]
   for(i in 1:n)
   {
-    if(any(dim(filters[[i]]) != df))
-    {
-      print("error in filter dimensions")
-      return(z)
-    }
     if(nf == 2)
     {
-      z[[i]] <- conv2d(imray, filters[[i]], padding, stride)
+      z[[i]] <- conv1d(imray, filters[,i], padding, stride)
     }
-    else if(nf == 3)
+    if(nf == 3)
     {
-      z[[i]] <- conv3d(imray, filters[[i]], padding, stride)
+      z[[i]] <- conv2d(imray, filters[,,i], padding, stride)
+    }
+    else if(nf == 4)
+    {
+      z[[i]] <- conv3d(imray, filters[,,,i], padding, stride)
     }
   }
-  return(array(unlist(z), dim = c(dim(z[[1]])[1], dim(z[[1]])[2], n)))
+  if(nf > 2)
+  {
+    return(array(unlist(z), dim = c(dim(z[[1]])[1], dim(z[[1]])[2], n)))
+  }
+  else
+  {
+    return(array(unlist(z), dim = c(dim(z[[1]])[1], n)))
+  }
 }
 
 
@@ -221,7 +254,13 @@ addPad <- function(data, pad)
   {
     dims = dim(data)
     dlen = length(dims)
-    if(dlen == 2)
+    if(dlen == 1)
+    {
+      n <- array(0, dim = c(dims[1] + 2 * pad))
+      n[(pad+1):(pad+dims[1])] <- data
+      data <- n
+    }
+    else if(dlen == 2)
     {
       if(dims[1] == dims[2] | length(pad) == 1)
       {
@@ -255,5 +294,11 @@ addPad <- function(data, pad)
     }
   }
   return(data)
+}
+
+
+flatten <- function(imray)
+{
+  return(array(imray, dim = length(imray)))
 }
 
