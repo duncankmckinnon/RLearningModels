@@ -1,8 +1,8 @@
 #Recurrent NN Tools
 #Duncan McKinnon
 
-require(stringr)
-require(hash)
+require('stringr')
+require('hash')
 
 vocab2Dict <- function(vocab)
 {
@@ -24,7 +24,7 @@ updateDict <- function(dict, items)
   return(hash(v, i))
 }
 
-words2Matrix <- function(words, dict)
+words2Matrix <- function(words, dict = hash())
 {
   dict <- updateDict(dict, words)
   nw <- length(words)
