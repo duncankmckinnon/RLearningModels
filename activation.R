@@ -58,3 +58,14 @@ g_t <- function(z, deriv = F)
 {
   return(exp(z)/rowSums(exp(z)))
 }
+
+softmax <- function(z)
+{
+  z_t <- sum(g_sigmoid(z))
+  z_i <- vector(length = length(z))
+  for(i in 1:length(z))
+  {
+    z_i[i] <- g_sigmoid(z[i])/z_t
+  }
+  return(z_i)
+}
